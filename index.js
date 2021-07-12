@@ -1,4 +1,5 @@
 const express = require('express');
+const userRepo = require('./repositories/users');
 
 const app = express();
 
@@ -17,8 +18,19 @@ app.get('/', (req, res)=>{
     `);
 })
 
-app.post('/', (req, res)=>{
-    console.log(req.body);
+app.post('/', async (req, res)=>{
+    const { email, password, passwordConfirmation } = req.body;
+    const existingUser = await userRepo.getOneBy({ email });
+
+    if(existingUser){
+        res.status(400).send('Email in use');
+        return;
+    }
+    if(password !== passwordConfirmation){
+        res.send('Passwords dont match');
+        return;
+    }
+    await userRepo.create({ email, password });
     res.send('Account created!!');
 })
 
