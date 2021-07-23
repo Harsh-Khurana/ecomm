@@ -1,22 +1,42 @@
 const express = require('express');
-const router = express.Router();
-const { validationResult } = require('express-validator');
+const multer = require('multer');
+const { handleErrors, requireAuth } = require('./middlewares');
 const productsRepo = require('../../repositories/products');
 const productsNewTemplate = require('../../views/admin/products/new');
+const productsIndexTemplate = require('../../views/admin/products');
+const productsEditTemplate = require('../../views/admin/products/edit');
 const { requireTitle, requirePrice } = require('./validators');
 
-router.get('/admin/products', (req, res)=>{
-
+const router = express.Router();
+const upload = multer({
+    storage : multer.memoryStorage()
 })
 
-router.get('/admin/products/new', (req, res)=>{
+router.get('/admin/products', requireAuth, async (req, res)=>{
+    const products = await productsRepo.getAll();
+    res.send(productsIndexTemplate({ products }));
+})
+
+router.get('/admin/products/new', requireAuth, (req, res)=>{
     res.send(productsNewTemplate({}));
 })
 
-router.post('/admin/products/new', [ requireTitle, requirePrice ], (req, res)=>{
-    const errors = validationResult(req);
-    console.log(errors)
-    res.send('Submitted');
+router.post('/admin/products/new', requireAuth, upload.single('image'), [ requireTitle, requirePrice ], 
+    handleErrors(productsNewTemplate), async (req, res)=>{
+    const { title, price } = req.body;
+    const image = req.file.buffer.toString('base64');
+    productsRepo.create({ title, price, image });
+    res.redirect('/admin/products');
+})
+
+router.get('/admin/products/:id/edit', requireAuth, async (req, res)=>{
+    const product = await productsRepo.getOne(req.params.id);
+    if(!product) return res.send('Product not found');
+    res.send(productsEditTemplate({ product }));
+})
+
+router.post('/admin/products/:id/edit', requireAuth, async (req, res)=>{
+    
 })
 
 module.exports = router;
